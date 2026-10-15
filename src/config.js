@@ -1,45 +1,144 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
+// Integration configuration: defaults (they mirror the `default` values of the
+// manifest `config_schema`, see test/manifest.test.js) and normalization, so
+// the rest of the code never deals with strings, blanks or `undefined`.
 //
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// The devices are typed by address, in two groups that each have their own
+// user name and password: most installations use one password for every
+// camera and the recorder, and a different one for the doorbell. A password
+// lives in a `secret` field only: an address carrying credentials
+// (`user:pass@host`) is refused rather than kept in a plain text field.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+export const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+// Minutes between two images of every camera added to Gladys (`0`: only on a
+// detection, a ring or a scene action). In Gladys 5.2.1 the camera box of the
+// dashboard shows the last image the integration published and never asks
+// for a new one, so this is how fresh the dashboard is.
+export const SNAPSHOT_INTERVALS = ['0', '1', '5', '15', '60'];
+
+export const DEFAULT_USERNAME = 'admin';
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  hosts: '',
+  username: DEFAULT_USERNAME,
+  password: '',
+  hosts_2: '',
+  username_2: DEFAULT_USERNAME,
+  password_2: '',
+  snapshot_interval: '5',
+  allow_siren: false,
+  allow_door_open: false,
+  language: 'fr',
 };
 
+// A host name or an IPv4 address; an IPv6 address goes between brackets.
+const HOST_PATTERN = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * One address as typed: `192.0.2.10`, `192.0.2.10:8080`, `https://nvr.lan`,
+ * `[2001:db8::10]:80`.
+ * @returns {{ origin: string, label: string } | null} null when unusable
+ */
+export function parseHost(raw) {
+  const text = String(raw ?? '').trim();
+  if (!text || text.includes('@')) {
+    return null;
+  }
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `http://${text}`;
+  let url;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    return null;
+  }
+  if (url.pathname !== '/' || url.search || url.hash) {
+    return null;
+  }
+  const host = url.hostname;
+  const ipv6 = host.startsWith('[') && host.endsWith(']');
+  if (!ipv6 && !HOST_PATTERN.test(host)) {
+    return null;
+  }
+  return { origin: url.origin, label: url.port ? `${host}:${url.port}` : host };
+}
+
+/**
+ * The addresses of a field: separated by commas, semicolons, spaces or new
+ * lines, duplicates dropped.
+ * @returns {{ hosts: Array<{ origin, label }>, invalid: string[] }}
+ */
+export function parseHosts(raw) {
+  const hosts = [];
+  const invalid = [];
+  const seen = new Set();
+  const text = typeof raw === 'string' ? raw : '';
+  for (const entry of text.split(/[\s,;]+/).filter(Boolean)) {
+    const host = parseHost(entry);
+    if (!host) {
+      // Never the entry itself in a message: it may hold a password.
+      invalid.push(entry.includes('@') ? '…@…' : entry);
+    } else if (!seen.has(host.origin)) {
+      seen.add(host.origin);
+      hosts.push(host);
+    }
+  }
+  return { hosts, invalid };
+}
+
+const pickOption = (value, options, fallback) =>
+  options.includes(String(value ?? '')) ? String(value) : fallback;
+
+// A boolean field may arrive as a string from older form engines.
+const flag = (value, fallback) =>
+  value === undefined || value === null || value === ''
+    ? fallback
+    : value === true || value === 'true';
+
+/**
+ * @param {Record<string, unknown>} raw the configuration returned by the SDK
  */
 export function normalizeConfig(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const text = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
+  // A password may legitimately start or end with a space: kept as typed.
+  const secret = (key) => (typeof source[key] === 'string' ? source[key] : '');
+  const devices = [];
+  const invalid = [];
+  const seen = new Set();
+  for (const [group, suffix] of [
+    [1, ''],
+    [2, '_2'],
+  ]) {
+    const parsed = parseHosts(source[`hosts${suffix}`]);
+    invalid.push(...parsed.invalid);
+    for (const host of parsed.hosts) {
+      if (seen.has(host.origin)) {
+        continue; // the first group wins
+      }
+      seen.add(host.origin);
+      devices.push({
+        ...host,
+        group,
+        username: text(`username${suffix}`) || DEFAULT_USERNAME,
+        password: secret(`password${suffix}`),
+      });
+    }
+  }
+  const language = text('language');
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    devices,
+    invalidHosts: invalid,
+    snapshotIntervalMs:
+      Number(
+        pickOption(source.snapshot_interval, SNAPSHOT_INTERVALS, DEFAULT_CONFIG.snapshot_interval),
+      ) * 60_000,
+    allowSiren: flag(source.allow_siren, DEFAULT_CONFIG.allow_siren),
+    allowDoorOpen: flag(source.allow_door_open, DEFAULT_CONFIG.allow_door_open),
+    language: LANGUAGES.includes(language) ? language : DEFAULT_CONFIG.language,
   };
 }
