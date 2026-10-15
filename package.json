@@ -1,6 +1,6 @@
 {
   "name": "gladys-dahua",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Dahua integration for Gladys Assistant: cameras, recorders and doorbells over their local HTTP API.",
   "type": "module",

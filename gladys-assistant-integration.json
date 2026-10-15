@@ -8,8 +8,8 @@
     "de": "Dahua-Kameras, Rekorder und Türsprechanlagen lokal: Bilder, Erkennungen, Klingeln, Steuerung.",
     "es": "Cámaras, grabadores y porteros Dahua en local: imágenes, detecciones, timbre y controles."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/guim31/gladys-dahua:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/guim31/gladys-dahua:1.0.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-dahua/main/cover.png",
   "categories": ["security"],
