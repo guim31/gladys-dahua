@@ -1,0 +1,17 @@
+{
+  "magicBox": {
+    "getSystemInfo": "deviceType=DHI-NVR5464-16P-EI\r\nhardwareVersion=1.0\r\nprocessor=Hi3536\r\nserialNumber=7D0CE45AB98F123\r\nupdateSerial=DHI-NVR5464-16P-EI\r\n",
+    "getSoftwareVersion": "version=4.001.0000000.4.R,build:2022-11-30\r\n",
+    "getMachineName": "name=Enregistreur\r\n",
+    "getDeviceClass": "class=NVR\r\n",
+    "getDeviceType": "type=DHI-NVR5464-16P-EI\r\n",
+    "getVendor": "vendor=Dahua\r\n"
+  },
+  "tables": {
+    "RemoteDevice": "table.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_0.DeviceType=IPC-HDW2431T-AS\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_0.Enable=true\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_0.Password=CameraSecret0\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_0.ProtocolType=Private\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_0.UserName=admin\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_1.DeviceType=IPC\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_1.Enable=true\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_1.Password=CameraSecret1\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_1.ProtocolType=Private\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_1.UserName=admin\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_2.DeviceType=Generic\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_2.Enable=true\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_2.Password=CameraSecret2\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_2.ProtocolType=Onvif\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_2.UserName=admin\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_3.Enable=false\r\ntable.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_3.ProtocolType=Private\r\n",
+    "ChannelTitle": "table.ChannelTitle[0].Name=FRONT STREET\r\ntable.ChannelTitle[1].Name=Channel2\r\ntable.ChannelTitle[2].Name=Garage\r\ntable.ChannelTitle[3].Name=Channel4\r\n",
+    "MotionDetect": "table.MotionDetect[0].Enable=true\r\ntable.MotionDetect[1].Enable=true\r\ntable.MotionDetect[2].Enable=true\r\ntable.MotionDetect[3].Enable=false\r\n",
+    "SmartMotionDetect": "table.SmartMotionDetect[1].Enable=true\r\ntable.SmartMotionDetect[1].ObjectTypes.Human=true\r\ntable.SmartMotionDetect[1].ObjectTypes.Vehicle=true\r\n"
+  },
+  "coaxial": null
+}

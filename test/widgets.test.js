@@ -1,77 +1,90 @@
+// -----------------------------------------------------------------------------
+// The `dahua` widget: within the core budget and vocabulary
+// (validateWidgetContent), its images served, a camera chosen in its settings,
+// and its messages when nothing is configured or a camera is gone.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { WIDGET_KEY } from '../src/hub.js';
+import { cameraIds, createAll, createWorld, doorbellIds, settle } from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+async function world(t, options) {
+  const w = await createWorld(options);
+  t.after(() => w.app.stop());
+  return w;
+}
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+async function content(w, settings = {}, language = 'en') {
+  const ack = await w.fake.widgetGet(WIDGET_KEY, { settings, language, units: 'metric' });
+  assert.equal(ack.success, true, ack.error);
+  return ack.data.content;
+}
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
-
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
-  }
-});
-
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
+test('every camera, the persons and rings with their images, within the budget', async (t) => {
+  const w = await world(t);
+  await createAll(w);
+  w.clock.advance(60_000);
+  await w.emit('camera', 'crossLineHuman');
+  await w.emit('doorbell', 'ring');
+  const widget = await content(w);
+  assert.deepEqual(validateWidgetContent(widget), []);
+  const [online, events, list, status] = widget.components;
+  assert.equal(online.value, '4/4');
+  assert.equal(events.value, 2);
+  assert.deepEqual(
+    list.items.map((item) => item.title),
+    ['Doorbell · Portier', 'Person · Entree'],
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
+  assert.ok(list.items.every((item) => item.image && item.date));
+  assert.equal(status.items.length, 4);
+  // The image of a list item is served.
+  const image = await w.fake.widgetGetImage(list.items[0].image);
+  assert.equal(image.success, true);
+  assert.ok(Buffer.from(image.data.image, 'base64').length > 100);
+  // The widget was nudged by the events.
+  assert.ok(w.fake.widgetRefreshes.length > 0);
 });
 
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
-});
-
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
+test('one camera chosen in the settings', async (t) => {
+  const w = await world(t);
+  await createAll(w);
+  w.clock.advance(60_000);
+  await w.emit('camera', 'crossLineHuman');
+  await w.emit('doorbell', 'ring');
+  const widget = await content(w, { camera: doorbellIds(w.gladys).device }, 'fr');
+  assert.deepEqual(validateWidgetContent(widget), []);
+  assert.equal(widget.components[0].value, '1/1');
+  assert.equal(widget.components[1].value, 1);
+  assert.deepEqual(
+    widget.components[2].items.map((item) => item.title),
+    ['Sonnette · Portier'],
   );
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('an offline device shows in the tiles, the status and a caption', async (t) => {
+  const w = await world(t);
+  w.devices.camera.online = false;
+  w.devices.camera.dropStreams();
+  await settle();
+  await w.hub.refresh();
+  const widget = await content(w);
+  assert.deepEqual(validateWidgetContent(widget), []);
+  assert.equal(widget.components[0].type, 'text');
+  assert.match(widget.components[0].text, /does not answer/);
+  assert.equal(widget.components[1].value, '3/4');
+  const status = widget.components.find((component) => component.type === 'status');
+  assert.equal(status.items[0].value, 'Offline');
+});
+
+test('messages: nothing configured, a camera gone, nothing seen yet', async (t) => {
+  const empty = await world(t, { config: {} });
+  assert.match((await content(empty)).components[0].text, /Enter the address/);
+  const w = await world(t);
+  const gone = await content(w, { camera: 'ext:test-integration:camera:GONE' }, 'de');
+  assert.match(gone.components[0].text, /nicht mehr konfiguriert/);
+  const quiet = await content(w, { camera: cameraIds(w.gladys).device }, 'es');
+  assert.deepEqual(validateWidgetContent(quiet), []);
+  assert.ok(quiet.components.some((c) => c.type === 'text' && /Ninguna persona/.test(c.text)));
 });

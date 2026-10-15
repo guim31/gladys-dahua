@@ -1,0 +1,23 @@
+{
+  "magicBox": {
+    "getSystemInfo": "appAutoStart=true\r\ndeviceType=IPC-HFW3849T1-AS-PV\r\nhardwareVersion=1.00\r\nprocessor=S3LM\r\nserialNumber=8F0AB12CDE34F56\r\nupdateSerial=IPC-HFW3849T1-AS-PV\r\n",
+    "getSoftwareVersion": "version=2.800.0000016.0.R,build:2020-06-05\r\n",
+    "getMachineName": "name=Entree\r\n",
+    "getDeviceClass": "class=IPC\r\n",
+    "getDeviceType": "type=IPC-HFW3849T1-AS-PV\r\n",
+    "getVendor": "vendor=Dahua\r\n"
+  },
+  "tables": {
+    "MotionDetect": "table.MotionDetect[0].DetectVersion=V3.0\r\ntable.MotionDetect[0].Enable=true\r\n",
+    "SmartMotionDetect": "table.SmartMotionDetect[0].Enable=true\r\ntable.SmartMotionDetect[0].ObjectTypes.Human=true\r\ntable.SmartMotionDetect[0].ObjectTypes.Vehicle=false\r\ntable.SmartMotionDetect[0].Sensitivity=Middle\r\n",
+    "VideoAnalyseRule": "table.VideoAnalyseRule[0][0].Class=Normal\r\ntable.VideoAnalyseRule[0][0].Enable=true\r\ntable.VideoAnalyseRule[0][0].Id=1\r\ntable.VideoAnalyseRule[0][0].Name=Portail\r\ntable.VideoAnalyseRule[0][0].Type=CrossLineDetection\r\ntable.VideoAnalyseRule[0][1].Class=Normal\r\ntable.VideoAnalyseRule[0][1].Enable=false\r\ntable.VideoAnalyseRule[0][1].Id=2\r\ntable.VideoAnalyseRule[0][1].Name=Rule2\r\ntable.VideoAnalyseRule[0][1].Type=CrossRegionDetection\r\n",
+    "Lighting": "table.Lighting[0][0].Correction=50\r\ntable.Lighting[0][0].MiddleLight[0].Angle=50\r\ntable.Lighting[0][0].MiddleLight[0].Light=50\r\ntable.Lighting[0][0].Mode=Auto\r\ntable.Lighting[0][0].Sensitive=3\r\ntable.Lighting[0][1].Correction=50\r\ntable.Lighting[0][1].MiddleLight[0].Angle=50\r\ntable.Lighting[0][1].MiddleLight[0].Light=50\r\ntable.Lighting[0][1].Mode=Auto\r\ntable.Lighting[0][1].Sensitive=3\r\n",
+    "Lighting_V2": "table.Lighting_V2[0][0][0].Correction=50\r\ntable.Lighting_V2[0][0][0].LightType=InfraredLight\r\ntable.Lighting_V2[0][0][0].MiddleLight[0].Angle=50\r\ntable.Lighting_V2[0][0][0].MiddleLight[0].Light=100\r\ntable.Lighting_V2[0][0][0].Mode=Auto\r\ntable.Lighting_V2[0][0][1].Correction=50\r\ntable.Lighting_V2[0][0][1].LightType=WhiteLight\r\ntable.Lighting_V2[0][0][1].MiddleLight[0].Angle=50\r\ntable.Lighting_V2[0][0][1].MiddleLight[0].Light=100\r\ntable.Lighting_V2[0][0][1].Mode=Auto\r\ntable.Lighting_V2[0][0][1].PercentOfMaxBrightness=100\r\ntable.Lighting_V2[0][0][1].Sensitive=3\r\n",
+    "LeLensMask": "table.LeLensMask[0].Enable=false\r\ntable.LeLensMask[0].TimeSection[0][0]=0 00:00:00-24:00:00\r\n",
+    "VideoInMode": "table.VideoInMode[0].Config[0]=0\r\ntable.VideoInMode[0].Mode=0\r\ntable.VideoInMode[0].TimeSection[0][0]=0 00:00:00-24:00:00\r\n"
+  },
+  "coaxial": {
+    "Speaker": "Off",
+    "WhiteLight": "Off"
+  }
+}

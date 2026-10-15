@@ -1,67 +1,268 @@
-# Template de démonstration
+# Dahua
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Intègre à Gladys les **caméras**, **enregistreurs** (NVR, XVR) et **portiers**
+(VTO) Dahua, **en local**, par leur API HTTP : images des caméras, mouvement,
+règles de franchissement de ligne et d'intrusion, personnes et véhicules,
+alarmes audio, sonnerie des portiers, et les commandes des caméras qui en ont
+(détection de mouvement, vision nocturne, projecteur, sirène, masque de
+confidentialité). Fonctionne aussi avec les marques bâties sur Dahua qui
+gardent son API, comme Amcrest et Lorex. Aucun compte cloud, rien ne quitte
+votre réseau.
 
-## Ce que vous obtenez
+> **Developed without the hardware: feedback welcome.** Cette intégration a
+> été écrite d'après l'API HTTP publique de Dahua, le travail de l'intégration
+> Home Assistant `dahua` et de vraies réponses d'appareils, sans appareil
+> Dahua sous la main. Si quelque chose ne fonctionne pas comme décrit, ouvrez
+> un ticket sur
+> [github.com/guim31/gladys-dahua/issues](https://github.com/guim31/gladys-dahua/issues)
+> avec les logs de l'intégration (`LOG_LEVEL=debug`).
+>
+> Cette intégration n'est pas affiliée à Dahua. Dahua, Amcrest et Lorex sont
+> des marques de leurs propriétaires.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+## Ce qu'il vous faut
 
-## Configuration
+- Une caméra, un enregistreur ou un portier Dahua (ou un modèle en marque
+  blanche avec le firmware Dahua) joignable par Gladys sur votre réseau, avec
+  sa page web en service (port 80, ou 443 en HTTPS).
+- Un **compte local** de l'appareil, idéalement administrateur : un compte
+  sans les droits peut lire mais pas changer les réglages. Sur les firmwares
+  récents, l'authentification doit accepter **Digest MD5** (le réglage par
+  défaut).
+- Gladys **5.1 ou plus**.
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+Les marques passées à une application uniquement cloud (modèles IMOU /
+Lechange sans page web locale) ne peuvent pas être utilisées.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Mise en route
 
-## Actions
+### Réglages
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Dans Gladys, ouvrez l'intégration, puis son onglet **Configuration** :
 
-## Scènes
+- **Adresses des appareils** : les adresses IP (ou noms) de vos appareils,
+  séparées par des virgules, avec `:port` si ce n'est pas 80, et `https://`
+  devant pour le HTTPS. Pour un enregistreur, son adresse suffit : chacune de
+  ses caméras devient un appareil dans Gladys. Ne mettez jamais de mot de
+  passe dans une adresse.
+- **Nom d'utilisateur** et **Mot de passe** : le compte de ces appareils
+  (`admin` par défaut). Le mot de passe n'est envoyé qu'aux appareils, jamais
+  à un cloud.
+- **Adresses des autres appareils**, **Leur nom d'utilisateur**,
+  **Leur mot de passe** (facultatif) : les appareils qui ont d'autres
+  identifiants, typiquement le portier.
+- **Images des caméras** : fréquence de rafraîchissement de l'image de chaque
+  caméra ajoutée à Gladys (toutes les 5 minutes par défaut, ou seulement sur
+  événement). Une personne ou une sonnerie en envoie toujours une neuve.
+- **Piloter les sirènes** : ajoute un interrupteur **Sirène** aux caméras qui
+  en ont une. Désactivé par défaut.
+- **Autoriser l'ouverture de porte** : permet aux scènes d'ouvrir la porte ou
+  le portail relié à un portier Dahua. Désactivé par défaut, voir
+  [Portiers](#portiers).
+- **Langue des noms** : la langue des noms de fonctionnalités et des textes
+  envoyés aux scènes (français par défaut). Les noms sont fixés à l'ajout d'un
+  appareil dans Gladys.
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+Enregistrez : l'état sous le nom de l'intégration passe à connecté, et les
+appareils apparaissent dans l'onglet **Découverte**. Ajoutez ceux que vous
+voulez.
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+**Un mauvais mot de passe n'est essayé qu'une fois.** Un appareil Dahua
+bloque le compte 5 à 30 minutes après quelques mots de passe refusés : au
+premier refus, l'intégration cesse de parler à cet appareil (les autres
+continuent) jusqu'à ce que vous changiez la configuration ou cliquiez sur
+**Tester la connexion**.
+
+### Actions de configuration
+
+- **Tester la connexion** : relit chaque appareil et affiche, pour chacun,
+  son modèle, son type et son nombre de canaux, ou pourquoi il ne répond pas.
+  Elle réessaie aussi une fois un mot de passe refusé auparavant.
+- **Afficher l'adresse du flux vidéo** : choisissez une caméra, l'adresse
+  RTSP de son flux vidéo s'affiche sous le bouton, prête pour l'intégration
+  « Caméra RTSP » de Gladys (voir [Vidéo en direct](#vidéo-en-direct)). Le mot
+  de passe n'est jamais affiché : remplacez `PASSWORD` vous-même.
+
+## Les appareils
+
+### Caméras
+
+Un appareil par caméra, avec les fonctionnalités que ses propres réglages
+montrent :
+
+- **Image** : l'image de la caméra, rafraîchie à l'intervalle choisi, à
+  chaque personne et sonnerie, et à la demande ;
+- **En ligne** : allumé tant que l'appareil répond ;
+- **Mouvement** : allumé tant que la caméra signale du mouvement ;
+- **Franchissement de ligne**, **Intrusion** : allumés tant qu'une règle de
+  franchissement ou d'intrusion (IVS) de la caméra est déclenchée —
+  seulement si une règle activée existe ;
+- **Personne**, **Véhicule** : allumés tant que la détection intelligente en
+  voit un, ou 10 secondes quand une règle de franchissement ou d'intrusion
+  signale une personne ou un véhicule ;
+- **Alarme audio** : allumée tant que la caméra signale un bruit soudain.
+  Elle apparaît à la première alarme audio : cliquez sur **Mettre à jour** sur
+  la caméra dans l'onglet **Découverte** ;
+- **Détection de mouvement** : active ou désactive la détection de mouvement
+  de la caméra ;
+- **Vision nocturne** : l'éclairage infrarouge, **Auto**, **Allumée** ou
+  **Éteinte** ;
+- **Projecteur** : la lumière blanche des caméras qui en ont une. L'allumer la
+  force allumée ; l'éteindre lui rend son mode précédent ;
+- **Sirène** : fait sonner la sirène des caméras qui en ont une, seulement si
+  **Piloter les sirènes** est coché. La sirène s'arrête d'elle-même après 10 à
+  15 secondes ;
+- **Masque de confidentialité** : cache l'objectif (mode confidentialité).
+  Tant qu'il est actif, l'image de la caméra n'est pas rafraîchie par le
+  minuteur.
+
+Une règle activée après l'ajout de l'appareil apparaît après une **Recherche**
+dans l'onglet **Découverte**, puis **Mettre à jour**.
+
+### Enregistreurs
+
+Un enregistreur n'est pas un appareil dans Gladys : chacune de ses caméras
+Dahua l'est, nommée comme dans l'enregistreur, avec **Image**, **En ligne**,
+**Mouvement**, **Détection de mouvement**, et **Personne** et **Véhicule** sur
+les canaux qui ont la détection intelligente. Les caméras ajoutées à
+l'enregistreur en ONVIF ne se pilotent pas par l'API Dahua et sont laissées de
+côté. Un enregistreur a un seul flux d'événements pour toutes ses caméras.
+
+### Portiers
+
+Un portier Dahua (VTO) est une caméra avec **Sonnette** : elle s'allume
+10 secondes à chaque appui sur le bouton, et Gladys affiche quand il a sonné
+pour la dernière fois.
+
+**L'ouverture de porte est désactivée par défaut** et n'est jamais un
+interrupteur : aucun bouton du tableau de bord, aucun assistant vocal ne peut
+l'ouvrir par erreur. Une fois **Autoriser l'ouverture de porte** coché, seule
+l'action de scène **Ouvrir la porte d'un portier** peut le faire, et la
+commande est envoyée une fois, jamais répétée.
 
 ## Tableau de bord
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Le widget **Dahua** montre d'un coup d'œil :
+
+- les caméras en ligne (3/4) et les personnes et sonneries des dernières
+  24 heures ;
+- les dernières personnes et sonneries, les plus récentes d'abord, chacune
+  avec l'image prise sur le moment ;
+- l'état de chaque caméra.
+
+Dans ses réglages, choisissez une caméra pour n'afficher qu'elle. Les
+événements sont gardés en mémoire : la liste repart vide au redémarrage de
+l'intégration.
+
+## Scènes
+
+### Déclencheurs
+
+- **Personne détectée par une caméra** : une caméra a vu une personne.
+  Filtres : la caméra, et ce qui l'a détectée (détection intelligente, règle
+  de franchissement de ligne, règle d'intrusion) ; laissés vides, tout
+  convient. Les actions peuvent utiliser le nom de la caméra, ce qui a détecté
+  la personne et le nom de la règle. Un événement par caméra en 15 secondes :
+  une personne vue par deux règles lance la scène une fois. Quand la scène
+  démarre, l'image de la caméra dans Gladys est déjà celle de la détection.
+- **Quelqu'un sonne au portier** : le bouton d'un portier a été pressé.
+  Filtre : le portier. Les actions peuvent utiliser son nom. L'image du
+  portier dans Gladys est déjà celle de la sonnerie.
+
+Les états des appareils (mouvement, franchissement de ligne, alarme audio…)
+sont aussi disponibles pour le déclencheur habituel « état d'un appareil » de
+Gladys.
+
+### Actions
+
+- **Rafraîchir l'image d'une caméra** : prend une image neuve d'une caméra
+  pour Gladys, pour que l'action suivante (« envoyer l'image d'une caméra »
+  dans un message) envoie ce que la caméra voit maintenant.
+- **Ouvrir la porte d'un portier** : ouvre la porte 1 ou 2 d'un portier.
+  Refusée tant que **Autoriser l'ouverture de porte** n'est pas coché.
+
+### Idées de scènes
+
+- **Quelqu'un sonne** : déclencheur « Quelqu'un sonne au portier », puis
+  « envoyer l'image d'une caméra » du portier sur votre téléphone avec le
+  message « Quelqu'un à la porte ».
+- **Personne dans l'allée la nuit** : déclencheur « Personne détectée par une
+  caméra » (caméra Allée), une condition sur l'heure, puis allumer
+  l'éclairage du jardin 5 minutes.
+- **Tranquille quand vous êtes là** : quand la maison devient occupée,
+  désactiver **Détection de mouvement** sur les caméras intérieures ; la
+  réactiver quand tout le monde part.
+- **Vision nocturne et lampe du perron** : quand la lampe du perron s'allume,
+  mettre **Vision nocturne** de la caméra d'entrée sur **Éteinte** (pas de
+  reflet sur la vitre) ; revenir à **Auto** quand elle s'éteint.
+
+## Vidéo en direct
+
+La fonctionnalité **Image** montre des images fixes. Pour la vidéo en direct,
+utilisez l'intégration « Caméra RTSP » de Gladys :
+
+1. Lancez **Afficher l'adresse du flux vidéo** avec la caméra.
+2. Ajoutez la caméra dans l'intégration « Caméra RTSP » avec cette adresse, en
+   remplaçant `PASSWORD` par le mot de passe de l'appareil
+   (`rtsp://admin:PASSWORD@<adresse>:554/cam/realmonitor?channel=1&subtype=0` ;
+   `subtype=1` donne le flux secondaire, plus léger).
+
+## Rafraîchissement et limites de l'API
+
+Gladys n'interroge jamais ces appareils : l'intégration suit en direct le flux
+d'événements de chaque appareil, et relit les réglages toutes les 5 minutes
+(chaque minute tant qu'un flux d'événements est coupé). Les valeurs ne sont
+envoyées à Gladys que lorsqu'elles changent, et de nouveau toutes les 6 heures
+sinon.
+
+Le serveur web d'un appareil Dahua est petit : l'intégration envoie au plus
+deux requêtes à la fois à chaque appareil, lit des tables entières (un
+enregistreur coûte les mêmes quelques requêtes qu'une caméra), et attend une
+réponse 20 secondes au plus. Images : au plus une toutes les 6 secondes par
+caméra (Gladys en accepte 12 par minute). Chaque requête apparaît dans le
+journal de l'appareil : un rafraîchissement toutes les 5 minutes le garde
+lisible.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **« L'appareil ne répond pas »** : vérifiez l'adresse, que l'appareil est
+  allumé, et que Gladys peut l'atteindre (même réseau, pare-feu).
+- **« Mot de passe refusé »** : corrigez le nom d'utilisateur ou le mot de
+  passe de cet appareil, enregistrez, puis cliquez sur **Tester la
+  connexion**. Si l'appareil a bloqué le compte, attendez qu'il le débloque
+  (5 à 30 minutes) ou redémarrez-le.
+- **« Pas d'API HTTP Dahua à cette adresse »** : l'adresse n'est pas celle de
+  l'appareil, ou l'API CGI y est désactivée (sur les firmwares récents :
+  Réseau, Port, ou Sécurité, « CGI »).
+- **« Ce compte n'a pas ce droit »** : utilisez un compte administrateur.
+- **« L'appareil a refusé le réglage »** : ce modèle ou ce canal ne le prend
+  pas en charge ; la fonctionnalité reste comme elle était.
+- **« les événements en direct sont coupés »** : les états suivent toujours,
+  chaque minute ; personnes et sonneries attendent le retour du flux. Il se
+  reconnecte tout seul.
+- **Une règle, une lumière ou un masque manque** : activez-le sur l'appareil,
+  puis **Recherche** dans l'onglet **Découverte** et **Mettre à jour**
+  l'appareil.
+- **Pas d'image** : l'intégration réduit les images jusqu'au 4K ; un JPEG
+  progressif plus grand que 1080p ne peut pas être réduit dans la mémoire du
+  conteneur. Les logs le disent une fois.
+- Pour plus de détails, mettez `LOG_LEVEL=debug` sur l'intégration et lisez
+  ses logs. Ils ne contiennent jamais de mot de passe.
+
+## Limites
+
+- Développée sans le matériel : testée contre de vraies réponses de l'API et
+  un appareil simulé, pas contre de vrais appareils.
+- La sonnerie du portier est lue dans le flux d'événements HTTP
+  (`BackKeyLight`, `PhoneCallDetect`). Certains portiers ne la signalent que
+  par leur autre protocole (DHIP, port 5000), pas encore utilisé : dites-le
+  nous si une sonnerie n'apparaît pas.
+- Les sirènes sont reconnues sur les modèles connus pour en avoir une et sur
+  les caméras qui annoncent un haut-parleur ; la sirène des caméras derrière
+  un enregistreur n'est pas pilotée.
+- Pas de commande PTZ, pas de pilotage de l'enregistrement ni de l'alarme,
+  pas d'audio bidirectionnel.
+- Caméras multi-capteurs : seul leur premier canal est utilisé.
+- La liste des événements du widget repart vide à chaque redémarrage.
+- Les images sont réduites à 960 pixels de large au plus (la limite de Gladys
+  est de 150 Ko par image).
