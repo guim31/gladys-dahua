@@ -34,7 +34,10 @@ export class HttpError extends Error {
  * @returns {Promise<{ status: number, headers: object, body?: Buffer,
  *   stream?: AsyncIterable<Buffer>, close?: () => void }>}
  */
-export function request(url, { method = 'GET', headers = {}, timeoutMs = 10_000, stream = false } = {}) {
+export function request(
+  url,
+  { method = 'GET', headers = {}, timeoutMs = 10_000, stream = false } = {},
+) {
   return new Promise((resolve, reject) => {
     const target = new URL(url);
     const secure = target.protocol === 'https:';

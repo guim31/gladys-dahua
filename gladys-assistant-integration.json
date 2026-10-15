@@ -1,177 +1,603 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Dahua",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Dahua cameras, recorders and doorbells, locally: images, detections, rings and controls.",
+    "fr": "Caméras, enregistreurs et portiers Dahua en local : images, détections, sonnerie, commandes.",
+    "de": "Dahua-Kameras, Rekorder und Türsprechanlagen lokal: Bilder, Erkennungen, Klingeln, Steuerung.",
+    "es": "Cámaras, grabadores y porteros Dahua en local: imágenes, detecciones, timbre y controles."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-dahua:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-dahua/main/cover.png",
+  "categories": ["security"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
-      "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+      "label": {
+        "en": "Your Dahua devices",
+        "fr": "Vos appareils Dahua",
+        "de": "Deine Dahua-Geräte",
+        "es": "Sus dispositivos Dahua"
       },
-      "links": [
+      "description": {
+        "en": "Cameras, recorders (NVR, XVR) and doorbells (VTO) of Dahua and of the brands built on it (Amcrest, Lorex…), on your network, through their HTTP API. Use a local account of the device, ideally an administrator. Nothing goes through a cloud.",
+        "fr": "Caméras, enregistreurs (NVR, XVR) et portiers (VTO) Dahua et des marques qui en dérivent (Amcrest, Lorex…), sur votre réseau, par leur API HTTP. Utilisez un compte local de l'appareil, idéalement administrateur. Rien ne passe par un cloud.",
+        "de": "Kameras, Rekorder (NVR, XVR) und Türsprechanlagen (VTO) von Dahua und den darauf basierenden Marken (Amcrest, Lorex…), in deinem Netzwerk, über ihre HTTP-API. Verwende ein lokales Konto des Geräts, am besten ein Administratorkonto. Nichts läuft über eine Cloud.",
+        "es": "Cámaras, grabadores (NVR, XVR) y porteros (VTO) de Dahua y de las marcas que derivan de ella (Amcrest, Lorex…), en su red, mediante su API HTTP. Utilice una cuenta local del dispositivo, idealmente de administrador. Nada pasa por una nube."
+      }
+    },
+    {
+      "key": "hosts",
+      "type": "string",
+      "label": {
+        "en": "Device addresses",
+        "fr": "Adresses des appareils",
+        "de": "Adressen der Geräte",
+        "es": "Direcciones de los dispositivos"
+      },
+      "description": {
+        "en": "IP addresses or names, separated by commas, with :port if not 80, https:// for HTTPS. For a recorder, its address is enough: each camera becomes a device.",
+        "fr": "Adresses IP ou noms, séparés par des virgules, avec :port si ce n'est pas 80, https:// pour HTTPS. Pour un enregistreur, son adresse suffit : chaque caméra devient un appareil.",
+        "de": "IP-Adressen oder Namen, durch Kommas getrennt, mit :Port, falls nicht 80, https:// für HTTPS. Bei einem Rekorder genügt seine Adresse: Jede Kamera wird ein Gerät.",
+        "es": "Direcciones IP o nombres, separados por comas, con :puerto si no es 80, https:// para HTTPS. Para un grabador basta su dirección: cada cámara se convierte en un dispositivo."
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.108, 192.168.1.109",
+        "fr": "ex. 192.168.1.108, 192.168.1.109",
+        "de": "z. B. 192.168.1.108, 192.168.1.109",
+        "es": "p. ej. 192.168.1.108, 192.168.1.109"
+      },
+      "required": true,
+      "default": ""
+    },
+    {
+      "key": "username",
+      "type": "string",
+      "label": {
+        "en": "User name",
+        "fr": "Nom d'utilisateur",
+        "de": "Benutzername",
+        "es": "Nombre de usuario"
+      },
+      "required": false,
+      "default": "admin"
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "label": {
+        "en": "Password",
+        "fr": "Mot de passe",
+        "de": "Passwort",
+        "es": "Contraseña"
+      },
+      "description": {
+        "en": "Sent to the devices only, never to a cloud. A device locks the account after a few wrong passwords: the integration stops at the first refusal.",
+        "fr": "Envoyé aux appareils seulement, jamais à un cloud. Un appareil bloque le compte après quelques erreurs : l'intégration s'arrête au premier refus.",
+        "de": "Wird nur an die Geräte gesendet, nie an eine Cloud. Ein Gerät sperrt das Konto nach einigen Fehlversuchen: Die Integration stoppt bei der ersten Ablehnung.",
+        "es": "Solo se envía a los dispositivos, nunca a una nube. Un dispositivo bloquea la cuenta tras varios errores: la integración se detiene al primer rechazo."
+      },
+      "required": true
+    },
+    {
+      "key": "other_credentials",
+      "type": "section",
+      "label": {
+        "en": "Devices with other credentials",
+        "fr": "Appareils avec d'autres identifiants",
+        "de": "Geräte mit anderen Zugangsdaten",
+        "es": "Dispositivos con otras credenciales"
+      },
+      "description": {
+        "en": "Optional: a doorbell or a camera whose user name or password differs from the ones above.",
+        "fr": "Facultatif : un portier ou une caméra dont le nom d'utilisateur ou le mot de passe diffère de ceux ci-dessus.",
+        "de": "Optional: eine Türsprechanlage oder Kamera, deren Benutzername oder Passwort von den obigen abweicht.",
+        "es": "Opcional: un portero o una cámara cuyo nombre de usuario o contraseña difiere de los anteriores."
+      }
+    },
+    {
+      "key": "hosts_2",
+      "type": "string",
+      "label": {
+        "en": "Other device addresses",
+        "fr": "Adresses des autres appareils",
+        "de": "Adressen der anderen Geräte",
+        "es": "Direcciones de los otros dispositivos"
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.110",
+        "fr": "ex. 192.168.1.110",
+        "de": "z. B. 192.168.1.110",
+        "es": "p. ej. 192.168.1.110"
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "username_2",
+      "type": "string",
+      "label": {
+        "en": "Their user name",
+        "fr": "Leur nom d'utilisateur",
+        "de": "Deren Benutzername",
+        "es": "Su nombre de usuario"
+      },
+      "required": false,
+      "default": "admin"
+    },
+    {
+      "key": "password_2",
+      "type": "secret",
+      "label": {
+        "en": "Their password",
+        "fr": "Leur mot de passe",
+        "de": "Deren Passwort",
+        "es": "Su contraseña"
+      },
+      "required": false
+    },
+    {
+      "key": "snapshot_interval",
+      "type": "select",
+      "label": {
+        "en": "Camera images",
+        "fr": "Images des caméras",
+        "de": "Kamerabilder",
+        "es": "Imágenes de las cámaras"
+      },
+      "description": {
+        "en": "How often the image of each camera added to Gladys is refreshed. A person or a ring always sends a fresh one.",
+        "fr": "Fréquence de rafraîchissement de l'image des caméras ajoutées. Une personne ou une sonnerie en envoie toujours une neuve.",
+        "de": "Wie oft das Bild jeder hinzugefügten Kamera erneuert wird. Eine Person oder ein Klingeln sendet immer ein neues.",
+        "es": "Frecuencia de actualización de la imagen de las cámaras añadidas. Una persona o un timbre siempre envían una nueva."
+      },
+      "required": false,
+      "default": "5",
+      "options": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "value": "0",
+          "label": {
+            "en": "Only on events",
+            "fr": "Seulement sur événement",
+            "de": "Nur bei Ereignissen",
+            "es": "Solo con eventos"
+          }
+        },
+        {
+          "value": "1",
+          "label": {
+            "en": "Every minute",
+            "fr": "Chaque minute",
+            "de": "Jede Minute",
+            "es": "Cada minuto"
+          }
+        },
+        {
+          "value": "5",
+          "label": {
+            "en": "Every 5 minutes",
+            "fr": "Toutes les 5 minutes",
+            "de": "Alle 5 Minuten",
+            "es": "Cada 5 minutos"
+          }
+        },
+        {
+          "value": "15",
+          "label": {
+            "en": "Every 15 minutes",
+            "fr": "Toutes les 15 minutes",
+            "de": "Alle 15 Minuten",
+            "es": "Cada 15 minutos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "Every hour",
+            "fr": "Toutes les heures",
+            "de": "Jede Stunde",
+            "es": "Cada hora"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "allow_siren",
+      "type": "boolean",
+      "label": {
+        "en": "Control the sirens",
+        "fr": "Piloter les sirènes",
+        "de": "Sirenen steuern",
+        "es": "Controlar las sirenas"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "Adds a siren switch to the cameras that have one. Off by default: a siren sounded by mistake wakes the neighbourhood.",
+        "fr": "Ajoute un interrupteur de sirène aux caméras qui en ont une. Désactivé par défaut : une sirène déclenchée par erreur réveille le voisinage.",
+        "de": "Fügt den Kameras mit Sirene einen Sirenenschalter hinzu. Standardmäßig aus: Eine versehentliche Sirene weckt die Nachbarschaft.",
+        "es": "Añade un interruptor de sirena a las cámaras que la tienen. Desactivado por defecto: una sirena activada por error despierta al vecindario."
+      },
+      "required": false,
+      "default": false
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "allow_door_open",
+      "type": "boolean",
+      "label": {
+        "en": "Allow opening the door",
+        "fr": "Autoriser l'ouverture de porte",
+        "de": "Öffnen der Tür erlauben",
+        "es": "Permitir abrir la puerta"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "Lets scenes open the door or gate of a Dahua doorbell (scene action only, never a switch). Off by default.",
+        "fr": "Permet aux scènes d'ouvrir la porte ou le portail d'un portier Dahua (action de scène seulement, jamais un interrupteur). Désactivé par défaut.",
+        "de": "Erlaubt Szenen, die Tür oder das Tor einer Dahua-Türsprechanlage zu öffnen (nur Szenenaktion, nie ein Schalter). Standardmäßig aus.",
+        "es": "Permite que las escenas abran la puerta o el portón de un portero Dahua (solo acción de escena, nunca un interruptor). Desactivado por defecto."
+      },
+      "required": false,
+      "default": false
     },
     {
-      "key": "unit",
+      "key": "language",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Language of the feature names and of the texts sent to scenes. Names are set when a device is added.",
+        "fr": "Langue des noms de fonctionnalités et des textes envoyés aux scènes. Les noms sont fixés à l'ajout d'un appareil.",
+        "de": "Sprache der Funktionsnamen und der Texte für Szenen. Die Namen werden beim Hinzufügen festgelegt.",
+        "es": "Idioma de los nombres de funciones y de los textos enviados a las escenas. Se fijan al añadir un dispositivo."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "English",
+            "de": "English",
+            "es": "English"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "Français",
+            "fr": "Français",
+            "de": "Français",
+            "es": "Français"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "Deutsch",
+            "fr": "Deutsch",
+            "de": "Deutsch",
+            "es": "Deutsch"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Español",
+            "fr": "Español",
+            "de": "Español",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "timeout_seconds": 60
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "stream_url",
+      "label": {
+        "en": "Show the video stream address",
+        "fr": "Afficher l'adresse du flux vidéo",
+        "de": "Adresse des Videostreams anzeigen",
+        "es": "Mostrar la dirección del flujo de vídeo"
+      },
+      "timeout_seconds": 15,
       "fields": [
         {
-          "key": "device",
+          "key": "camera",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": {
+            "en": "Camera",
+            "fr": "Caméra",
+            "de": "Kamera",
+            "es": "Cámara"
+          }
         }
       ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "person_detected",
+      "label": {
+        "en": "Person detected by a camera",
+        "fr": "Personne détectée par une caméra",
+        "de": "Person von einer Kamera erkannt",
+        "es": "Persona detectada por una cámara"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A Dahua camera saw a person (smart motion detection, line crossing or intrusion rule). The camera image is fresh.",
+        "fr": "Une caméra Dahua a vu une personne (détection intelligente, règle de franchissement ou d'intrusion). L'image de la caméra est à jour.",
+        "de": "Eine Dahua-Kamera hat eine Person gesehen (intelligente Erkennung, Linien- oder Eindringregel). Das Kamerabild ist aktuell.",
+        "es": "Una cámara Dahua vio a una persona (detección inteligente, regla de cruce o de intrusión). La imagen de la cámara está al día."
       },
       "fields": [
         {
-          "key": "device",
+          "key": "camera",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "Camera",
+            "fr": "Caméra",
+            "de": "Kamera",
+            "es": "Cámara"
+          }
         },
         {
-          "key": "target",
+          "key": "source",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "label": {
+            "en": "Detected by",
+            "fr": "Détectée par",
+            "de": "Erkannt durch",
+            "es": "Detectada por"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "smart_motion",
+              "label": {
+                "en": "Smart motion detection",
+                "fr": "Détection intelligente",
+                "de": "Intelligente Erkennung",
+                "es": "Detección inteligente"
+              }
+            },
+            {
+              "value": "line_crossing",
+              "label": {
+                "en": "Line crossing rule",
+                "fr": "Règle de franchissement de ligne",
+                "de": "Linienüberschreitungsregel",
+                "es": "Regla de cruce de línea"
+              }
+            },
+            {
+              "value": "intrusion",
+              "label": {
+                "en": "Intrusion rule",
+                "fr": "Règle d'intrusion",
+                "de": "Eindringregel",
+                "es": "Regla de intrusión"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "camera_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Camera name",
+            "fr": "Nom de la caméra",
+            "de": "Name der Kamera",
+            "es": "Nombre de la cámara"
+          }
+        },
+        {
+          "key": "source_name",
+          "type": "string",
+          "label": {
+            "en": "Detected by",
+            "fr": "Détectée par",
+            "de": "Erkannt durch",
+            "es": "Detectada por"
+          }
+        },
+        {
+          "key": "rule_name",
+          "type": "string",
+          "label": {
+            "en": "Rule name",
+            "fr": "Nom de la règle",
+            "de": "Name der Regel",
+            "es": "Nombre de la regla"
+          }
+        }
+      ]
+    },
+    {
+      "key": "doorbell_pressed",
+      "label": {
+        "en": "Someone rang the doorbell",
+        "fr": "Quelqu'un sonne au portier",
+        "de": "Jemand klingelt an der Tür",
+        "es": "Alguien llama al portero"
+      },
+      "description": {
+        "en": "The button of a Dahua doorbell was pressed. The doorbell camera image is fresh.",
+        "fr": "Le bouton d'un portier Dahua a été pressé. L'image de sa caméra est à jour.",
+        "de": "Die Taste einer Dahua-Türsprechanlage wurde gedrückt. Das Bild ihrer Kamera ist aktuell.",
+        "es": "Se ha pulsado el botón de un portero Dahua. La imagen de su cámara está al día."
+      },
+      "fields": [
+        {
+          "key": "doorbell",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Doorbell",
+            "fr": "Portier",
+            "de": "Türsprechanlage",
+            "es": "Portero"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "doorbell_name",
+          "type": "string",
+          "label": {
+            "en": "Doorbell name",
+            "fr": "Nom du portier",
+            "de": "Name der Türsprechanlage",
+            "es": "Nombre del portero"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "refresh_snapshot",
+      "label": {
+        "en": "Refresh a camera image",
+        "fr": "Rafraîchir l'image d'une caméra",
+        "de": "Kamerabild aktualisieren",
+        "es": "Actualizar la imagen de una cámara"
+      },
       "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+        "en": "Takes a fresh image of the camera for Gladys, to send it in a message right after.",
+        "fr": "Prend une image neuve de la caméra pour Gladys, à envoyer ensuite dans un message.",
+        "de": "Nimmt ein neues Bild der Kamera für Gladys auf, um es danach in einer Nachricht zu senden.",
+        "es": "Toma una imagen nueva de la cámara para Gladys, para enviarla después en un mensaje."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "camera",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Camera",
+            "fr": "Caméra",
+            "de": "Kamera",
+            "es": "Cámara"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "open_door",
+      "label": {
+        "en": "Open the door of a doorbell",
+        "fr": "Ouvrir la porte d'un portier",
+        "de": "Tür einer Türsprechanlage öffnen",
+        "es": "Abrir la puerta de un portero"
+      },
+      "description": {
+        "en": "Opens the door or gate wired to a Dahua doorbell. Only once allowed in the configuration of the integration.",
+        "fr": "Ouvre la porte ou le portail relié à un portier Dahua. Seulement une fois autorisé dans la configuration de l'intégration.",
+        "de": "Öffnet die Tür oder das Tor an einer Dahua-Türsprechanlage. Nur wenn in der Konfiguration der Integration erlaubt.",
+        "es": "Abre la puerta o el portón conectado a un portero Dahua. Solo si se ha autorizado en la configuración de la integración."
       },
       "timeout_seconds": 15,
       "fields": [
         {
-          "key": "device",
+          "key": "doorbell",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Doorbell",
+            "fr": "Portier",
+            "de": "Türsprechanlage",
+            "es": "Portero"
+          },
           "required": true
-        }
-      ],
-      "outputs": [
+        },
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "door",
+          "type": "select",
+          "label": {
+            "en": "Door",
+            "fr": "Porte",
+            "de": "Tür",
+            "es": "Puerta"
+          },
+          "required": true,
+          "default": "1",
+          "options": [
+            {
+              "value": "1",
+              "label": {
+                "en": "Door 1",
+                "fr": "Porte 1",
+                "de": "Tür 1",
+                "es": "Puerta 1"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "en": "Door 2",
+                "fr": "Porte 2",
+                "de": "Tür 2",
+                "es": "Puerta 2"
+              }
+            }
+          ]
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "dahua",
+      "label": {
+        "en": "Dahua",
+        "fr": "Dahua",
+        "de": "Dahua",
+        "es": "Dahua"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Latest persons and rings with their image, and the state of the cameras.",
+        "fr": "Dernières personnes et sonneries avec leur image, et état des caméras.",
+        "de": "Letzte Personen und Klingeln mit ihrem Bild und der Zustand der Kameras.",
+        "es": "Últimas personas y timbres con su imagen y estado de las cámaras."
+      },
+      "icon": "video",
+      "settings": [
+        {
+          "key": "camera",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Camera (empty: all)",
+            "fr": "Caméra (vide : toutes)",
+            "de": "Kamera (leer: alle)",
+            "es": "Cámara (vacío: todas)"
+          }
+        }
+      ]
     }
   ]
 }

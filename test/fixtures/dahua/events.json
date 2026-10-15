@@ -1,0 +1,15 @@
+{
+  "motionStart": "Code=VideoMotion;action=Start;index=0;data={\n   \"Id\" : [ 0 ],\n   \"RegionName\" : [ \"Region1\" ],\n   \"SmartMotionEnable\" : true\n}",
+  "motionStop": "Code=VideoMotion;action=Stop;index=0;data={\n   \"Id\" : [ 0 ],\n   \"RegionName\" : [ \"Region1\" ],\n   \"SmartMotionEnable\" : true\n}",
+  "crossLineHuman": "Code=CrossLineDetection;action=Start;index=0;data={\"Class\" : \"Normal\", \"DetectLine\" : [ [ 18, 4098 ], [ 8155, 5549 ] ], \"Direction\" : \"RightToLeft\", \"EventSeq\" : 40, \"GroupID\" : 40, \"Mark\" : 0, \"Name\" : \"Portail\", \"Object\" : { \"Action\" : \"Appear\", \"BoundingBox\" : [ 4816, 4552, 5248, 5272 ], \"Center\" : [ 5032, 4912 ], \"Confidence\" : 0, \"ObjectID\" : 542, \"ObjectType\" : \"Human\", \"RelativeID\" : 0, \"Speed\" : 0 }, \"RuleId\" : 1, \"UTC\" : 1620477656, \"UTCMS\" : 180}",
+  "crossLineStop": "Code=CrossLineDetection;action=Stop;index=0;data={\"Class\" : \"Normal\", \"Name\" : \"Portail\", \"RuleId\" : 1}",
+  "crossLineTruncated": "Code=CrossLineDetection;action=Start;index=0;data={\"Name\": \"Brievenbus\", \"RuleID\": 5, \"Object\": {\"ObjectTy",
+  "smartHumanStart": "Code=SmartMotionHuman;action=Start;index=1",
+  "smartHumanStop": "Code=SmartMotionHuman;action=Stop;index=1",
+  "audio": "Code=AudioMutation;action=Start;index=0",
+  "audioStop": "Code=AudioMutation;action=Stop;index=0",
+  "ring": "Code=BackKeyLight;action=Pulse;index=-1;data={\"LocaleTime\":\"2021-06-20 13:52:20\",\"State\":1,\"UTC\":1624168340.0}",
+  "unlocked": "Code=BackKeyLight;action=Pulse;index=-1;data={\"LocaleTime\":\"2021-06-20 13:52:31\",\"State\":8,\"UTC\":1624168351.0}",
+  "ruleWithSemicolon": "Code=CrossRegionDetection;action=Start;index=0;data={\"Name\": \"Drive; Gate\", \"Object\": {\"ObjectType\": \"Vehicle\"}}",
+  "alarmLocal": "Code=AlarmLocal;action=Start;index=1"
+}

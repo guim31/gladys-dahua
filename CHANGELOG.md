@@ -12,44 +12,26 @@ the notes of the version's GitHub Release.
 
 ### Added
 
-- A working example of scene triggers, scene actions and dashboard widgets
-  (Gladys 5.1.0 or later).
-- `CHANGELOG.md`, rolled by the Release workflow.
-- A GitHub Release for every version, with its changelog section as notes: the
-  Gladys Supervision page links each version to the repository's releases.
-- CI runs the tests on Node 22 and 24, and builds the Docker image.
-- Dependabot keeps the npm dependencies and the GitHub Actions up to date.
-- `SECURITY.md` (how to report a vulnerability) and `CLAUDE.md` (project rules
-  for contributors and coding assistants).
-- Manifest tests: `version` matches `package.json`, `docker_image` is tagged
-  with it, descriptions hold 10 to 100 characters, placeholders are
-  multi-language objects.
-- The latitude and longitude fields show an example value as placeholder.
+- Dahua cameras, recorders (NVR, XVR) and doorbells (VTO), and the brands
+  built on Dahua that keep its API (Amcrest, Lorex…), over their local HTTP
+  API with digest authentication: one Gladys device per camera, per recorder
+  channel and per doorbell.
+- Camera image, refreshed on a timer (every 5 minutes by default), at each
+  person and ring, and on demand; resized to fit Gladys.
+- Online, motion, line crossing, intrusion, person and vehicle, audio alarm
+  and doorbell ring, followed live over the event stream of each device.
+- Controls: motion detection, night vision (auto, on, off), floodlight,
+  privacy mask, and the siren (only once allowed in the configuration).
+- Scene triggers "Person detected by a camera" and "Someone rang the
+  doorbell", with a fresh camera image before the scene starts.
+- Scene actions "Refresh a camera image" and "Open the door of a doorbell"
+  (disabled by default, never a switch).
+- Dashboard widget "Dahua": cameras online, persons and rings of the last
+  24 hours with their image.
+- Configuration actions "Test the connection" and "Show the video stream
+  address" (for the "RTSP camera" integration, never with the password).
+- A password refused once is never tried again on its own, so a device does
+  not lock the account.
+- English, French, German and Spanish.
 
-### Changed
-
-- Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
-- The refresh interval is one minute minimum, the fastest Gladys polls a
-  device. The plug's power is only sent when it changes, and every 30
-  minutes otherwise.
-
-### Fixed
-
-- Gladys refused the devices of the Discovery tab: the weather station and
-  the plug declared their poll frequency in seconds instead of one of the
-  values Gladys accepts, and were never polled. They now poll every minute,
-  and the readings follow the refresh interval of the configuration.
-
-- The release commit no longer fails `npm run format:check`: the Release
-  workflow updates the manifest `version` and `docker_image` in place instead
-  of re-printing the whole file with `jq`.
-- The integration can write to `/data`: the image creates the directory owned
-  by the `node` user, a new Docker volume was owned by root.
-- A sub-container running the integration's own image follows it to the new
-  tag at each release, as well as in the manifest of the build summary: it kept
-  the previous tag, which may not exist on the registry. Sub-containers on a
-  third-party image (a broker, a database...) keep theirs.
-
-[Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main
+[Unreleased]: https://github.com/guim31/gladys-dahua/commits/main

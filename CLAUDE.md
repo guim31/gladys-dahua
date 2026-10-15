@@ -8,20 +8,27 @@ contributors.
 A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
 no build step) that runs in its own sandboxed Docker container and talks to
 Gladys through
-[`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
-its only runtime dependency. It started from the official JavaScript template.
+[`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js).
+It started from the official JavaScript template. Runtime dependencies: the SDK
+and `jpeg-js` (pure JavaScript, to shrink camera pictures).
+
+It brings Dahua cameras, recorders (NVR, XVR) and doorbells (VTO), and the
+white-label brands that keep the Dahua firmware (Amcrest, Lorex…), into Gladys
+over their local CGI HTTP API (digest authentication), as the Home Assistant
+integration `rroller/dahua` does.
 
 ## Commands
 
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "ring"    # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
 npx github:GladysAssistant/integration-store .   # store admission checks
+DAHUA_PASSWORD=… node scripts/probe.mjs <ip> [user]   # real device, read-only
 ```
 
 The CI (`.github/workflows/ci.yml`) runs `format:check`, `lint` and `test` on
@@ -31,16 +38,29 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        all devices: reads, timers, event streams, states, images, triggers, commands, logs
+src/devices.js                    Gladys devices (one per channel), feature names (4 languages), values
+src/dahua/client.js               CGI client of one device: digest, queue (2 in flight), lockout guard, reads, writes
+src/dahua/digest.js               HTTP Digest (MD5, SHA-256, qop auth), Basic
+src/dahua/http.js                 the HTTP seam (node:http/https, streaming), replaced by the fake device in tests
+src/dahua/parse.js                key=value answers, refusals in a 200, multipart event stream, event blocks
+src/dahua/events.js               the event stream of one device: reconnection, backoff, hourly recycle
+src/dahua/model.js                kind, channels, capabilities from the tables; what an event means
+src/dahua/device.js               one configured device: describe, read settings, commands
+src/image.js, image-worker.js,    snapshot -> camera image <= 150 KB (worker, scaled decoder)
+  jpeg-scaled.js
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/widgets.js                    dashboard widget `dahua` (manifest `widgets`)
+src/texts.js                      status, error, report and action texts (4 languages)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/store.js                      /data/dahua-state.json (descriptions of the devices, learned detections)
+scripts/probe.mjs                 read-only probe of a real device (not in the image)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakeDahua.js (built from test/fixtures/dahua)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +90,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, widget content, feature names, manifest texts, and
+  `docs/en.md`, `docs/fr.md`, `docs/de.md`, `docs/es.md`, kept in sync
+  (`test/i18n.test.js` checks the languages and the doc sections).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +255,53 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Dahua : l'API et les pièges de cette intégration
+
+Sources : `rroller/dahua` (MIT, commit 3bccdf1 du 14/10/2026) et la doc HTTP API publique de Dahua. Aucun
+appareil Dahua n'a été testé : `scripts/probe.mjs` est à lancer par l'orchestrateur sur un vrai appareil.
+
+- **API CGI** : tout est `GET /cgi-bin/…`, réponses en lignes `clé=valeur` (`table.` devant les tables de
+  `configManager`). **Un 200 dont le corps commence par `Error` est un refus** ; une table absente répond un 200
+  vide, un 400 ou un 500 : une capacité se juge sur la présence de la clé du canal, jamais sur « la requête n'a
+  pas échoué ». 403 = compte sans le droit (jamais un mauvais mot de passe), 404/501 = pas d'API CGI.
+- **Digest** : signer l'`uri` exactement telle qu'envoyée. Les chemins gardent les crochets en clair
+  (`MotionDetect[0].Enable`), signés tels quels ; un `%5B` signé `[` donne un 403 sur certains firmwares. Un
+  appareil renvoie un nouveau nonce à chaque requête (deux requêtes par appel).
+- **Verrouillage du compte** : 5 mots de passe refusés puis 5 à 30 min de blocage selon le firmware. Un 401 sur
+  un défi qu'on vient de recevoir, c'est le mot de passe : le client s'arrête (`blocked`) dès ce premier refus
+  et ne reprend qu'avec une nouvelle configuration ou « Tester la connexion » (un seul essai). Le flux
+  d'événements ne s'ouvre pas sur un client bloqué. **Ne jamais ajouter de boucle de réessai sur un 401.**
+- **Charge** : 2 requêtes en vol au plus par appareil (une douzaine fige le serveur web), tables lues entières,
+  20 s de délai. Chaque requête s'écrit dans le journal de l'appareil.
+- **Canaux** : base 0 dans les tables et l'`index` des événements, base 1 dans `snapshot.cgi?channel=` et RTSP,
+  sauf vieux firmwares qui répondent à `channel=0` (sonde jamais faite sur un portier). Les caméras d'un
+  enregistreur sont ses emplacements `RemoteDevice` activés et non ONVIF (un canal ONVIF répond 400) ; **cette
+  table contient le mot de passe de chaque caméra en clair** : lue, utilisée, jetée, jamais journalisée ni
+  gardée dans `/data` (un test le vérifie).
+- **Flux d'événements** : toujours `codes=[All]` filtré ici (une liste longue est refusée en 400/500 ou rend le
+  flux muet), `heartbeat=5`, 60 s sans octet = flux mort. Parties multipart irrégulières : 1 à 3 en-têtes, pas de
+  ligne vide sur certains heartbeats, `\n` seuls, frontière coupée entre deux paquets, `Content-Length` faux,
+  JSON tronqué ou contenant `;` et `=` : `data` = tout ce qui suit `;data=`. Les `Stop` sont perdus pendant une
+  coupure : tout est remis à 0 à la fermeture du flux.
+- **Personne** : `SmartMotionHuman`, ou une règle `CrossLineDetection` / `CrossRegionDetection` dont
+  `data.Object.ObjectType` vaut `Human` (beaucoup de caméras n'envoient que ça ; `Object` peut être `null`).
+  **Sonnette** : `BackKeyLight` (VTO) ou `PhoneCallDetect` (Amcrest) avec `State` 1 ou 2 ; 8 = porte ouverte,
+  9 = échec. Home Assistant lit les portiers en DHIP (TCP 5000), pas par le flux CGI : la sonnerie par le flux
+  CGI n'est pas vérifiée. `AlarmLocal` : son `index` est une entrée d'alarme, pas un canal.
+- **Éclairage** : `Lighting[canal][profil].Mode` (`Auto`, `Manual` = allumé, `Off`) pour l'infrarouge ; le
+  profil vivant vient de `VideoInMode` (écrire un autre profil est accepté puis ignoré). Lumière blanche : la
+  ligne de `Lighting_V2[canal][profil][i]` dont `LightType=WhiteLight` (l'ordre change selon le modèle).
+- **Sirène** (`coaxialControlIO.cgi`, Type 2, IO 1/2) : état lu sur le canal 1, commande envoyée sur le canal 0
+  pour une caméra directe ; elle s'arrête seule après 10 à 15 s (relecture 20 s après). Présente seulement sur
+  les modèles connus (`AS-PV`, `L46N`, `W452ASD`, `TPC-BF1241`) ou si `getStatus` annonce un `Speaker`.
+- **Ouverture de porte** : `accessControl.cgi?action=openDoor&channel=N&UserID=101&Type=Remote`. **Jamais
+  réessayée**, même après un 400 (une porte s'est déjà ouverte malgré un 400). Désactivée par défaut, action de
+  scène seulement, jamais une fonctionnalité d'appareil.
+- **Image d'un portier** : 8 octets `dhav…` après la fin du JPEG, coupés.
+- Un `text/select` (vision nocturne) se publie `{ text }` ; le faux Gladys rend la chaîne avec `lastState`.
+- `audio` n'a pas de catégorie dans le cœur : `input/binary` (On/Off), comme « En ligne ».
+- Faux appareil de test (`test/helpers/fakeDahua.js`) : en mode `serve()`, appeler `res.flushHeaders()` pour le
+  flux, sinon le client attend les en-têtes jusqu'au premier octet.
+- `gladys-hikvision` (autre auteur, cité par la consigne) n'a pas été trouvé depuis la session (clone refusé
+  sous les comptes essayés, index du store injoignable).

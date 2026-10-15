@@ -1,0 +1,16 @@
+{
+  "magicBox": {
+    "getSystemInfo": "deviceType=VTO2202F-P\r\nhardwareVersion=1.00\r\nprocessor=SSC335\r\nserialNumber=6B2DF90AC17E345\r\nupdateSerial=VTO2202F-P\r\n",
+    "getSoftwareVersion": "version=4.500.0000000.8.R,build:2021-04-12\r\n",
+    "getMachineName": "name=Portier\r\n",
+    "getDeviceClass": "class=VTO\r\n",
+    "getDeviceType": "type=VTO2202F-P\r\n",
+    "getVendor": "vendor=Dahua\r\n"
+  },
+  "tables": {
+    "MotionDetect": "table.MotionDetect[0].Enable=true\r\n",
+    "Lighting": "table.Lighting[0][0].Mode=Auto\r\n",
+    "VideoInMode": "table.VideoInMode[0].Config[0]=0\r\ntable.VideoInMode[0].Mode=0\r\n"
+  },
+  "coaxial": null
+}

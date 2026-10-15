@@ -35,7 +35,8 @@ export function parseChallenges(headers) {
     }
   }
   digests.sort(
-    (a, b) => Number(/^SHA-256/i.test(b.algorithm ?? '')) - Number(/^SHA-256/i.test(a.algorithm ?? '')),
+    (a, b) =>
+      Number(/^SHA-256/i.test(b.algorithm ?? '')) - Number(/^SHA-256/i.test(a.algorithm ?? '')),
   );
   return { digest: digests[0] ?? null, basic };
 }

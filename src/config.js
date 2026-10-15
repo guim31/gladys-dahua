@@ -109,6 +109,9 @@ export function normalizeConfig(raw = {}) {
   const secret = (key) => (typeof source[key] === 'string' ? source[key] : '');
   const devices = [];
   const invalid = [];
+  // Addresses typed without a password: never contacted (a request with an
+  // empty password is a refused one, counted by the device's lockout).
+  const noPassword = [];
   const seen = new Set();
   for (const [group, suffix] of [
     [1, ''],
@@ -121,6 +124,10 @@ export function normalizeConfig(raw = {}) {
         continue; // the first group wins
       }
       seen.add(host.origin);
+      if (!secret(`password${suffix}`)) {
+        noPassword.push(host.label);
+        continue;
+      }
       devices.push({
         ...host,
         group,
@@ -133,6 +140,7 @@ export function normalizeConfig(raw = {}) {
   return {
     devices,
     invalidHosts: invalid,
+    noPassword,
     snapshotIntervalMs:
       Number(
         pickOption(source.snapshot_interval, SNAPSHOT_INTERVALS, DEFAULT_CONFIG.snapshot_interval),
